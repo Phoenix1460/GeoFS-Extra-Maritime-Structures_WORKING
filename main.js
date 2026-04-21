@@ -1,104 +1,75 @@
-(async function() {
-  const TAG = "[GeoFS-REAL-COLLISION]";
-  const viewer = window.geoViewer || (window.geofs && geofs.api && geofs.api.viewer);
-  if (!viewer || !window.Cesium) return console.log(TAG, "Viewer not found");
+(async function () {
+  const TAG = "[REAL-DECK]";
+  const viewer = geofs.api.viewer;
+  const Cesium = window.Cesium;
 
-  // LOAD YOUR FILES
-  const base = "https://raw.githubusercontent.com/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING/main/";
-  const [locData, collData] = await Promise.all([
-    fetch(base + "buildingsLOC.json").then(r => r.json()),
-    fetch(base + "collisionsettings.json").then(r => r.json())
-  ]);
+  const base = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/";
 
-  console.log(TAG, "Files loaded");
+  const locs = await fetch(base + "buildingsLOC.json").then(r => r.json());
+  const coll = await fetch(base + "collisionSettings.json").then(r => r.json());
 
-  const models = {
-    "USS Nimitz (CVN-68)": "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/modelfiles/nimitz.glb"
-  };
+  const modelURL = "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/modelfiles/nimitz.glb";
 
-  const ships = {};
-  let selected = null;
+  let spawnAlt = 23;
 
-  // BUILD SHIPS FROM JSON
-  locData.forEach(obj => {
-    if (!obj.location || !models[obj.name]) return;
+  // SPAWN MODEL
+  locs.forEach(s => {
+    const pos = Cesium.Cartesian3.fromDegrees(s.location[1], s.location[0], s.location[2]);
 
-    ships[obj.name] = {
-      name: obj.name,
-      lat: obj.location[0],
-      lon: obj.location[1],
-      alt: obj.location[2],
-      heading: obj.location[3] || 0,
-      spawnAlt: 25
-    };
+    viewer.entities.add({
+      position: pos,
+      model: {
+        uri: modelURL,
+        scale: 3
+      }
+    });
   });
 
-  function spawnShips() {
-    Object.values(ships).forEach(s => {
-      const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, s.alt);
+  console.log(TAG, "Spawned");
 
-      viewer.entities.add({
-        position: pos,
-        orientation: Cesium.Transforms.headingPitchRollQuaternion(
-          pos,
-          new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(s.heading), 0, 0)
-        ),
-        model: {
-          uri: models[s.name],
-          scale: 3,
-          minimumPixelSize: 128
-        }
-      });
-    });
-
-    console.log(TAG, "Ships spawned");
-  }
-
-  function teleport(name) {
-    const s = ships[name];
+  // TELEPORT
+  function tp() {
     const ac = geofs.aircraft.instance;
-    if (!s || !ac) return;
-
-    selected = name;
-
-    // IMPORTANT: SPAWN ABOVE COLLISION ALT
-    const coll = collData[name];
-    let safeAlt = s.spawnAlt;
-
-    if (coll && coll.collAlt) {
-      safeAlt = coll.collAlt + 5 + (s.spawnAlt - 25);
-    }
-
-    ac.llaLocation = [s.lat, s.lon, safeAlt];
-    ac.htr = s.heading;
+    ac.llaLocation = [36.9598107, -75.7194932, spawnAlt];
+    ac.htr = 87;
     ac.velocity = [0,0,0];
-
-    console.log(TAG, "TP:", name, "ALT:", safeAlt);
+    console.log(TAG, "TP ALT:", spawnAlt);
   }
 
-  function adjustHeight(dz) {
-    if (!selected) return;
+  // COLLISION LOOP (THIS IS THE IMPORTANT PART)
+  setInterval(() => {
+    const ac = geofs.aircraft.instance;
+    if (!ac) return;
 
-    ships[selected].spawnAlt += dz;
+    const d = coll["USS Nimitz (CVN-68)"].deck;
 
-    console.log(TAG, selected, "spawnAlt =", ships[selected].spawnAlt);
-  }
+    const latDiff = Math.abs(ac.llaLocation[0] - d.lat);
+    const lonDiff = Math.abs(ac.llaLocation[1] - d.lon);
 
-  // KEYBINDS (EXACTLY YOURS)
+    // inside deck zone
+    if (latDiff < d.radius && lonDiff < d.radius) {
+      if (ac.llaLocation[2] < d.height) {
+        ac.llaLocation[2] = d.height;
+        ac.velocity[2] = 0;
+      }
+    }
+  }, 50);
+
+  // KEYBINDS
   window.addEventListener("keydown", e => {
     const k = e.key;
 
-    console.log("KEY:", k);
+    if (k === "1") tp();
 
-    // TELEPORT
-    if (k === "1") teleport("USS Nimitz (CVN-68)");
+    if (k === "+" || k === "=") {
+      spawnAlt += 1;
+      console.log("ALT:", spawnAlt);
+    }
 
-    // HEIGHT CONTROL (NIMITZ)
-    if (k === "+" || k === "=") adjustHeight(1);
-    if (k === "-" || k === "_") adjustHeight(-1);
+    if (k === "-" || k === "_") {
+      spawnAlt -= 1;
+      console.log("ALT:", spawnAlt);
+    }
   });
 
-  spawnShips();
-
-  console.log(TAG, "READY");
 })();
