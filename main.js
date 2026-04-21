@@ -1,35 +1,30 @@
 (async function () {
-  const TAG = "[GeoFS-FINAL-WORKING]";
+  const TAG = "[GeoFS-REAL]";
   const viewer = window.geoViewer || (window.geofs && geofs.api && geofs.api.viewer);
-  if (!viewer || !window.Cesium) return;
+  if (!viewer || !window.Cesium) return console.log(TAG, "Viewer missing");
 
-  const base = "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/";
+  const BASE = "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/";
 
-  const locations = await fetch(base + "BuildingsLOC.json").then(r => r.json());
-  const collisions = await fetch(base + "collisionsettings.json").then(r => r.json());
-
-  const models = {
-    "USS Nimitz (CVN-68)": base + "modelfiles/nimitz.glb",
-    "USS Dwight D. Eisenhower (CVN-69)": base + "modelfiles/eisenhower.glb",
-    "USS Carl Vinson (CVN-70)": base + "modelfiles/nimitz.glb",
-    "USS Harry S. Truman (CVN-75)": base + "modelfiles/nimitz.glb",
-    "Clemenceau (R98)": base + "modelfiles/nimitz.glb",
-    "São Paulo (A12)": base + "modelfiles/nimitz.glb",
-    "Oil rig (Gulf of Mexico)": base + "modelfiles/simplerig.glb"
-  };
+  // LOAD YOUR FILES
+  const locations = await fetch(BASE + "BuildingsLOC.json").then(r => r.json());
+  const collisions = await fetch(BASE + "collisionsettings.json").then(r => r.json());
 
   const ships = [];
   let selected = null;
 
   // =====================
-  // SPAWN SHIPS
+  // SPAWN MODELS
   // =====================
   locations.forEach(obj => {
-    if (!obj.location || !models[obj.name]) return;
+    if (!obj.location || !obj.flyLocation) return;
+    if (obj.name.startsWith("-")) return;
+
+    const modelPath = BASE + "modelfiles/" +
+      obj.name.toLowerCase().replace(/[^a-z0-9]/g, "") + ".glb";
 
     const [lat, lon, alt, heading = 0] = obj.location;
 
-    const pos = Cesium.Cartesian3.fromDegrees(lon, lat, alt - 20);
+    const pos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
 
     const ori = Cesium.Transforms.headingPitchRollQuaternion(
       pos,
@@ -40,7 +35,7 @@
       position: pos,
       orientation: ori,
       model: {
-        uri: models[obj.name],
+        uri: modelPath,
         scale: 3
       }
     });
@@ -51,11 +46,12 @@
       lon,
       heading,
       fly: [...obj.flyLocation],
-      config: collisions[obj.name]
+      coll: collisions[obj.name]
     });
   });
 
-  console.log(TAG, "Ships spawned");
+  console.log(TAG, "Ships loaded");
+  ships.forEach((s,i)=>console.log(i, s.name));
 
   // =====================
   // TELEPORT
@@ -67,37 +63,25 @@
 
     selected = i;
 
-    const [lat, lon, alt, heading = s.heading] = s.fly;
-
-    ac.llaLocation = [lat, lon, alt];
-    ac.htr = heading;
+    ac.llaLocation = [s.fly[0], s.fly[1], s.fly[2]];
+    ac.htr = s.heading;
     ac.velocity = [0,0,0];
 
-    console.log(TAG, "TP →", s.name, "| height:", alt);
+    console.log("TP:", s.name);
   }
 
   // =====================
-  // HEIGHT CONTROL
+  // HEIGHT ADJUST
   // =====================
-  function adjustHeight(i, dz) {
-    const s = ships[i];
-    if (!s) return;
-
-    s.fly[2] += dz;
-
-    console.log(s.name, "spawnAlt:", s.fly[2].toFixed(2));
-  }
-
-  function print() {
+  function adjustHeight(dz) {
     if (selected === null) return;
-    const s = ships[selected];
+    ships[selected].fly[2] += dz;
 
-    console.log("=== COPY THIS ===");
-    console.log(`${s.name}: flyLocation altitude = ${s.fly[2]}`);
+    console.log("Height:", ships[selected].fly[2]);
   }
 
   // =====================
-  // COLLISION
+  // REAL COLLISION (FROM YOUR JSON)
   // =====================
   function worldToLocal(ac, ship) {
     const dx = (ac.llaLocation[1] - ship.lon) * 111320;
@@ -110,15 +94,15 @@
     ];
   }
 
-  function pointInPoly(point, vs) {
+  function pointInPoly(p, poly) {
     let inside = false;
-    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-      const xi = vs[i][0], yi = vs[i][1];
-      const xj = vs[j][0], yj = vs[j][1];
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0], yi = poly[i][1];
+      const xj = poly[j][0], yj = poly[j][1];
 
       const intersect =
-        yi > point[1] !== yj > point[1] &&
-        point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi;
+        yi > p[1] !== yj > p[1] &&
+        p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi;
 
       if (intersect) inside = !inside;
     }
@@ -130,14 +114,14 @@
     if (!ac) return requestAnimationFrame(collisionLoop);
 
     ships.forEach(ship => {
-      if (!ship.config || !ship.config.elevatorSquares) return;
+      if (!ship.coll || !ship.coll.elevatorSquares) return;
 
       const local = worldToLocal(ac, ship);
 
-      ship.config.elevatorSquares.forEach(square => {
+      ship.coll.elevatorSquares.forEach(square => {
         if (pointInPoly(local, square)) {
-          if (ac.llaLocation[2] < ship.config.collAlt) {
-            ac.llaLocation[2] = ship.config.collAlt;
+          if (ac.llaLocation[2] < ship.coll.collAlt) {
+            ac.llaLocation[2] = ship.coll.collAlt;
             ac.velocity[2] = 0;
           }
         }
@@ -150,29 +134,21 @@
   collisionLoop();
 
   // =====================
-  // KEYBINDS (WORKING)
+  // KEY SYSTEM (WORKING)
   // =====================
-  window.addEventListener("keydown", function(e) {
-    const k = e.key.toLowerCase();
+  const keys = {};
+  window.addEventListener("keydown", e => keys[e.key] = true);
+  window.addEventListener("keyup", e => keys[e.key] = false);
 
-    // TELEPORT
-    if (k === "1") { teleport(0); return; }
-    if (k === "2") { teleport(1); return; }
-    if (k === "3") { teleport(2); return; }
-    if (k === "4") { teleport(3); return; }
+  setInterval(() => {
+    if (keys["1"]) { teleport(0); keys["1"]=false; }
+    if (keys["2"]) { teleport(1); keys["2"]=false; }
+    if (keys["3"]) { teleport(2); keys["3"]=false; }
+    if (keys["4"]) { teleport(3); keys["4"]=false; }
 
-    if (selected === null) {
-      console.log("Select a ship first (1–4)");
-      return;
-    }
+    if (keys["w"] || keys["W"]) adjustHeight(0.5);
+    if (keys["s"] || keys["S"]) adjustHeight(-0.5);
 
-    // HEIGHT (RELIABLE)
-    if (k === "w") adjustHeight(selected, 1);
-    if (k === "s") adjustHeight(selected, -1);
+  }, 50);
 
-    // PRINT
-    if (k === "p") print();
-  });
-
-  console.log(TAG, "READY");
 })();
