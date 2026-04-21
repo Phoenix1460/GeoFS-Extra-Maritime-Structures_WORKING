@@ -1,5 +1,5 @@
 (async function () {
-  const TAG = "[GeoFS-CNR-FINAL]";
+  const TAG = "[GeoFS-FINAL-WORKING]";
   const viewer = window.geoViewer || (window.geofs && geofs.api && geofs.api.viewer);
   if (!viewer || !window.Cesium) return;
 
@@ -22,7 +22,7 @@
   let selected = null;
 
   // =====================
-  // SPAWN FROM JSON
+  // SPAWN SHIPS
   // =====================
   locations.forEach(obj => {
     if (!obj.location || !models[obj.name]) return;
@@ -50,46 +50,42 @@
       lat,
       lon,
       heading,
-      fly: [...obj.flyLocation], // clone so we can edit
+      fly: [...obj.flyLocation],
       config: collisions[obj.name]
     });
   });
 
-  console.log(TAG, "Ships spawned from BuildingsLOC");
+  console.log(TAG, "Ships spawned");
 
   // =====================
   // TELEPORT
   // =====================
   function teleport(i) {
-    const ship = ships[i];
+    const s = ships[i];
     const ac = geofs.aircraft.instance;
-    if (!ac || !ship) return;
+    if (!ac || !s) return;
 
     selected = i;
 
-    const [lat, lon, alt, heading = ship.heading] = ship.fly;
+    const [lat, lon, alt, heading = s.heading] = s.fly;
 
     ac.llaLocation = [lat, lon, alt];
     ac.htr = heading;
     ac.velocity = [0,0,0];
 
-    console.log(TAG, "TP →", ship.name, "| height:", alt);
+    console.log(TAG, "TP →", s.name, "| height:", alt);
   }
 
   // =====================
-  // HEIGHT TUNING (PER SHIP)
+  // HEIGHT CONTROL
   // =====================
-  function adjustHeight(index, dz) {
-    const s = ships[index];
+  function adjustHeight(i, dz) {
+    const s = ships[i];
     if (!s) return;
 
     s.fly[2] += dz;
 
-    console.log(
-      s.name,
-      "spawnAlt:",
-      s.fly[2].toFixed(2)
-    );
+    console.log(s.name, "spawnAlt:", s.fly[2].toFixed(2));
   }
 
   function print() {
@@ -101,7 +97,7 @@
   }
 
   // =====================
-  // COLLISION (CNR STYLE)
+  // COLLISION
   // =====================
   function worldToLocal(ac, ship) {
     const dx = (ac.llaLocation[1] - ship.lon) * 111320;
@@ -154,10 +150,10 @@
   collisionLoop();
 
   // =====================
-  // KEYBINDS (YOUR ORIGINAL SYSTEM)
+  // KEYBINDS (WORKING)
   // =====================
   window.addEventListener("keydown", function(e) {
-    const k = e.key;
+    const k = e.key.toLowerCase();
 
     // TELEPORT
     if (k === "1") { teleport(0); return; }
@@ -165,34 +161,17 @@
     if (k === "3") { teleport(2); return; }
     if (k === "4") { teleport(3); return; }
 
-    if (selected === null) return;
-
-    // SHIP 1
-    if (selected === 0) {
-      if (k === "+" || k === "=") adjustHeight(0, 1);
-      else if (k === "-" || k === "_") adjustHeight(0, -1);
+    if (selected === null) {
+      console.log("Select a ship first (1–4)");
+      return;
     }
 
-    // SHIP 2
-    else if (selected === 1) {
-      if (k === "]") adjustHeight(1, 1);
-      else if (k === "[") adjustHeight(1, -1);
-    }
+    // HEIGHT (RELIABLE)
+    if (k === "w") adjustHeight(selected, 1);
+    if (k === "s") adjustHeight(selected, -1);
 
-    // SHIP 3
-    else if (selected === 2) {
-      if (k === ";") adjustHeight(2, 1);
-      else if (k === "'") adjustHeight(2, -1);
-    }
-
-    // SHIP 4
-    else if (selected === 3) {
-      if (k === ".") adjustHeight(3, 1);
-      else if (k === ",") adjustHeight(3, -1);
-    }
-
-    // PRINT VALUE
-    if (k.toLowerCase() === "p") print();
+    // PRINT
+    if (k === "p") print();
   });
 
   console.log(TAG, "READY");
