@@ -1,5 +1,5 @@
 (async function () {
-  const TAG = "[GeoFS-REAL-CNR]";
+  const TAG = "[GeoFS-CNR-FINAL]";
   const viewer = window.geoViewer || (window.geofs && geofs.api && geofs.api.viewer);
   if (!viewer || !window.Cesium) return;
 
@@ -50,15 +50,15 @@
       lat,
       lon,
       heading,
-      fly: obj.flyLocation,
+      fly: [...obj.flyLocation], // clone so we can edit
       config: collisions[obj.name]
     });
   });
 
-  console.log(TAG, "Spawned from BuildingsLOC");
+  console.log(TAG, "Ships spawned from BuildingsLOC");
 
   // =====================
-  // TELEPORT (FIXED)
+  // TELEPORT
   // =====================
   function teleport(i) {
     const ship = ships[i];
@@ -67,7 +67,6 @@
 
     selected = i;
 
-    // ✅ USE flyLocation (THIS FIXES FALLING)
     const [lat, lon, alt, heading = ship.heading] = ship.fly;
 
     ac.llaLocation = [lat, lon, alt];
@@ -78,17 +77,18 @@
   }
 
   // =====================
-  // HEIGHT TUNING
+  // HEIGHT TUNING (PER SHIP)
   // =====================
-  function adjust(dz) {
-    if (selected === null) return;
+  function adjustHeight(index, dz) {
+    const s = ships[index];
+    if (!s) return;
 
-    ships[selected].fly[2] += dz;
+    s.fly[2] += dz;
 
     console.log(
-      ships[selected].name,
+      s.name,
       "spawnAlt:",
-      ships[selected].fly[2].toFixed(2)
+      s.fly[2].toFixed(2)
     );
   }
 
@@ -134,7 +134,7 @@
     if (!ac) return requestAnimationFrame(collisionLoop);
 
     ships.forEach(ship => {
-      if (!ship.config) return;
+      if (!ship.config || !ship.config.elevatorSquares) return;
 
       const local = worldToLocal(ac, ship);
 
@@ -154,19 +154,44 @@
   collisionLoop();
 
   // =====================
-  // KEYBINDS (YOUR OLD ONES)
+  // KEYBINDS (YOUR ORIGINAL SYSTEM)
   // =====================
-  window.addEventListener("keydown", e => {
+  window.addEventListener("keydown", function(e) {
     const k = e.key;
 
-    if (k === "1") teleport(0);
-    if (k === "2") teleport(1);
-    if (k === "3") teleport(2);
-    if (k === "4") teleport(3);
+    // TELEPORT
+    if (k === "1") { teleport(0); return; }
+    if (k === "2") { teleport(1); return; }
+    if (k === "3") { teleport(2); return; }
+    if (k === "4") { teleport(3); return; }
 
-    if (k === "+" || k === "=") adjust(1);
-    if (k === "-" || k === "_") adjust(-1);
+    if (selected === null) return;
 
+    // SHIP 1
+    if (selected === 0) {
+      if (k === "+" || k === "=") adjustHeight(0, 1);
+      else if (k === "-" || k === "_") adjustHeight(0, -1);
+    }
+
+    // SHIP 2
+    else if (selected === 1) {
+      if (k === "]") adjustHeight(1, 1);
+      else if (k === "[") adjustHeight(1, -1);
+    }
+
+    // SHIP 3
+    else if (selected === 2) {
+      if (k === ";") adjustHeight(2, 1);
+      else if (k === "'") adjustHeight(2, -1);
+    }
+
+    // SHIP 4
+    else if (selected === 3) {
+      if (k === ".") adjustHeight(3, 1);
+      else if (k === ",") adjustHeight(3, -1);
+    }
+
+    // PRINT VALUE
     if (k.toLowerCase() === "p") print();
   });
 
