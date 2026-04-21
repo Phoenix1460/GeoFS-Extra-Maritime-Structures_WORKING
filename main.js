@@ -1,120 +1,174 @@
 (async function () {
-    const TAG = "[REAL-COLLISION]";
+  const TAG = "[GeoFS-REAL-CNR]";
+  const viewer = window.geoViewer || (window.geofs && geofs.api && geofs.api.viewer);
+  if (!viewer || !window.Cesium) return;
 
-    const wait = setInterval(() => {
-        if (!window.geofs || !window.Cesium) return;
-        clearInterval(wait);
-        init();
-    }, 500);
+  const base = "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/";
 
-    async function init() {
-        const viewer = geofs.api.viewer;
+  const locations = await fetch(base + "BuildingsLOC.json").then(r => r.json());
+  const collisions = await fetch(base + "collisionsettings.json").then(r => r.json());
 
-        const base = "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/";
+  const models = {
+    "USS Nimitz (CVN-68)": base + "modelfiles/nimitz.glb",
+    "USS Dwight D. Eisenhower (CVN-69)": base + "modelfiles/eisenhower.glb",
+    "USS Carl Vinson (CVN-70)": base + "modelfiles/nimitz.glb",
+    "USS Harry S. Truman (CVN-75)": base + "modelfiles/nimitz.glb",
+    "Clemenceau (R98)": base + "modelfiles/nimitz.glb",
+    "São Paulo (A12)": base + "modelfiles/nimitz.glb",
+    "Oil rig (Gulf of Mexico)": base + "modelfiles/simplerig.glb"
+  };
 
-        const collisions = await fetch(base + "collisionsettings.json").then(r => r.json());
-        const locations = await fetch(base + "BuildingsLOC.json").then(r => r.json());
+  const ships = [];
+  let selected = null;
 
-        const models = {
-            "USS Nimitz (CVN-68)": base + "modelfiles/nimitz.glb",
-            "USS Dwight D. Eisenhower (CVN-69)": base + "modelfiles/eisenhower.glb",
-            "USS Gerald R. Ford (CVN-78)": base + "modelfiles/geraldford.glb",
-            "Oil rig (Gulf of Mexico)": base + "modelfiles/simplerig.glb"
-        };
+  // =====================
+  // SPAWN FROM JSON
+  // =====================
+  locations.forEach(obj => {
+    if (!obj.location || !models[obj.name]) return;
 
-        const spawned = [];
+    const [lat, lon, alt, heading = 0] = obj.location;
 
-        locations.forEach(obj => {
-            if (!obj.location || !models[obj.name]) return;
+    const pos = Cesium.Cartesian3.fromDegrees(lon, lat, alt - 20);
 
-            const [lat, lon, alt, heading = 0] = obj.location;
+    const ori = Cesium.Transforms.headingPitchRollQuaternion(
+      pos,
+      new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0)
+    );
 
-            const pos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+    viewer.entities.add({
+      position: pos,
+      orientation: ori,
+      model: {
+        uri: models[obj.name],
+        scale: 3
+      }
+    });
 
-            const ori = Cesium.Transforms.headingPitchRollQuaternion(
-                pos,
-                new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0)
-            );
+    ships.push({
+      name: obj.name,
+      lat,
+      lon,
+      heading,
+      fly: obj.flyLocation,
+      config: collisions[obj.name]
+    });
+  });
 
-            viewer.entities.add({
-                position: pos,
-                orientation: ori,
-                model: {
-                    uri: models[obj.name],
-                    scale: 3
-                }
-            });
+  console.log(TAG, "Spawned from BuildingsLOC");
 
-            spawned.push({
-                name: obj.name,
-                lat,
-                lon,
-                heading,
-                config: collisions[obj.name]
-            });
-        });
+  // =====================
+  // TELEPORT (FIXED)
+  // =====================
+  function teleport(i) {
+    const ship = ships[i];
+    const ac = geofs.aircraft.instance;
+    if (!ac || !ship) return;
 
-        function pointInPoly(p, poly) {
-            let inside = false;
-            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-                const xi = poly[i][0], yi = poly[i][1];
-                const xj = poly[j][0], yj = poly[j][1];
-                const intersect =
-                    yi > p[1] !== yj > p[1] &&
-                    p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi;
-                if (intersect) inside = !inside;
-            }
-            return inside;
-        }
+    selected = i;
 
-        function worldToLocal(ac, ship) {
-            const dx = (ac.llaLocation[1] - ship.lon) * 111320;
-            const dy = (ac.llaLocation[0] - ship.lat) * 111320;
-            const rad = -ship.heading * Math.PI / 180;
+    // ✅ USE flyLocation (THIS FIXES FALLING)
+    const [lat, lon, alt, heading = ship.heading] = ship.fly;
 
-            return [
-                dx * Math.cos(rad) - dy * Math.sin(rad),
-                dx * Math.sin(rad) + dy * Math.cos(rad)
-            ];
-        }
+    ac.llaLocation = [lat, lon, alt];
+    ac.htr = heading;
+    ac.velocity = [0,0,0];
 
-        function loop() {
-            const ac = geofs.aircraft.instance;
-            if (!ac) return requestAnimationFrame(loop);
+    console.log(TAG, "TP →", ship.name, "| height:", alt);
+  }
 
-            for (let ship of spawned) {
-                if (!ship.config) continue;
+  // =====================
+  // HEIGHT TUNING
+  // =====================
+  function adjust(dz) {
+    if (selected === null) return;
 
-                const local = worldToLocal(ac, ship);
+    ships[selected].fly[2] += dz;
 
-                for (let sq of ship.config.elevatorSquares) {
-                    if (pointInPoly(local, sq)) {
-                        if (ac.llaLocation[2] < ship.config.collAlt) {
-                            ac.llaLocation[2] = ship.config.collAlt;
-                            ac.velocity[2] = 0;
-                        }
-                    }
-                }
-            }
+    console.log(
+      ships[selected].name,
+      "spawnAlt:",
+      ships[selected].fly[2].toFixed(2)
+    );
+  }
 
-            requestAnimationFrame(loop);
-        }
+  function print() {
+    if (selected === null) return;
+    const s = ships[selected];
 
-        loop();
+    console.log("=== COPY THIS ===");
+    console.log(`${s.name}: flyLocation altitude = ${s.fly[2]}`);
+  }
 
-        window.addEventListener("keydown", e => {
-            if (!["1","2","3","4"].includes(e.key)) return;
+  // =====================
+  // COLLISION (CNR STYLE)
+  // =====================
+  function worldToLocal(ac, ship) {
+    const dx = (ac.llaLocation[1] - ship.lon) * 111320;
+    const dy = (ac.llaLocation[0] - ship.lat) * 111320;
+    const rad = -ship.heading * Math.PI / 180;
 
-            const ship = spawned[e.key - 1];
-            if (!ship) return;
+    return [
+      dx * Math.cos(rad) - dy * Math.sin(rad),
+      dx * Math.sin(rad) + dy * Math.cos(rad)
+    ];
+  }
 
-            const ac = geofs.aircraft.instance;
+  function pointInPoly(point, vs) {
+    let inside = false;
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+      const xi = vs[i][0], yi = vs[i][1];
+      const xj = vs[j][0], yj = vs[j][1];
 
-            ac.llaLocation = [ship.lat, ship.lon, 40];
-            ac.htr = ship.heading;
-            ac.velocity = [0,0,0];
-        });
+      const intersect =
+        yi > point[1] !== yj > point[1] &&
+        point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi;
 
-        console.log(TAG, "READY");
+      if (intersect) inside = !inside;
     }
+    return inside;
+  }
+
+  function collisionLoop() {
+    const ac = geofs.aircraft.instance;
+    if (!ac) return requestAnimationFrame(collisionLoop);
+
+    ships.forEach(ship => {
+      if (!ship.config) return;
+
+      const local = worldToLocal(ac, ship);
+
+      ship.config.elevatorSquares.forEach(square => {
+        if (pointInPoly(local, square)) {
+          if (ac.llaLocation[2] < ship.config.collAlt) {
+            ac.llaLocation[2] = ship.config.collAlt;
+            ac.velocity[2] = 0;
+          }
+        }
+      });
+    });
+
+    requestAnimationFrame(collisionLoop);
+  }
+
+  collisionLoop();
+
+  // =====================
+  // KEYBINDS (YOUR OLD ONES)
+  // =====================
+  window.addEventListener("keydown", e => {
+    const k = e.key;
+
+    if (k === "1") teleport(0);
+    if (k === "2") teleport(1);
+    if (k === "3") teleport(2);
+    if (k === "4") teleport(3);
+
+    if (k === "+" || k === "=") adjust(1);
+    if (k === "-" || k === "_") adjust(-1);
+
+    if (k.toLowerCase() === "p") print();
+  });
+
+  console.log(TAG, "READY");
 })();
