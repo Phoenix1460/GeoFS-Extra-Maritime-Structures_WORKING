@@ -1,4 +1,7 @@
-# GeoFS-Extra-Maritime-Structures_WORKING (* *IN PROGRESS* *)
+# GeoFS-Extra-Maritime-Structures_WORKING (* *INPROGRESS* *)
+-
+** THIS CODE IS IN PROGRESS AND LIKELY WILL NOT WORK TO ITS FULL POTENTIAL. THIS TAG WILL BE REMOVE ONCE THE FIRST 100% WORKING RELEASE IS COMPLETE **
+-
 Since the good ol' Extra Maritime structures mod is outdated, this one is a great alternative for users who want to experience new carriers, oil rigs, and other maritime structures.
 # CHECK LICENSE BEFORE USE
 Use by pasting into devtools console or tampermonkey may work (i have not tested with tampermonkey i am just assuming)
