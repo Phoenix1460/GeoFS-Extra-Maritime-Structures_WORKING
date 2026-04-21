@@ -1,1 +1,23 @@
+[
+    { "name": "-----Carriers-----" },
 
+    {
+        "name": "USS Nimitz (CVN-68)",
+        "location": [36.9598107, -75.7194932, 0, 87]
+    },
+    {
+        "name": "USS Dwight D. Eisenhower (CVN-69)",
+        "location": [36.8, -75.8, 0, 90]
+    },
+    {
+        "name": "USS Gerald R. Ford (CVN-78)",
+        "location": [36.3, -72.5, 0, 60]
+    },
+
+    { "name": "-----Oil rigs-----" },
+
+    {
+        "name": "Oil rig (Gulf of Mexico)",
+        "location": [27.3, -90.2, 0, 0]
+    }
+]
