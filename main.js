@@ -1,11 +1,8 @@
 (function () {
-  const TAG = "[GeoFS-FRESH]";
+  const TAG = "[GeoFS-FIXED]";
   const viewer = geofs.api.viewer;
   const Cesium = window.Cesium;
 
-  // =========================
-  // SHIPS (EDIT HERE IF NEEDED)
-  // =========================
   const ships = {
     "1": {
       name: "Nimitz",
@@ -14,6 +11,7 @@
       heading: 87,
       deckAlt: 20,
       spawnAlt: 25,
+      size: 0.03,
       model: "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/modelfiles/nimitz.glb",
       scale: 3
     },
@@ -24,6 +22,7 @@
       heading: 90,
       deckAlt: 20,
       spawnAlt: 25,
+      size: 0.03,
       model: "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/modelfiles/eisenhower.glb",
       scale: 3
     }
@@ -31,9 +30,9 @@
 
   let selected = null;
 
-  // =========================
-  // SPAWN MODELS
-  // =========================
+  // =====================
+  // SPAWN
+  // =====================
   function spawn() {
     Object.values(ships).forEach(s => {
       const pos = Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 0);
@@ -57,9 +56,9 @@
     console.log(TAG, "Spawned");
   }
 
-  // =========================
+  // =====================
   // TELEPORT
-  // =========================
+  // =====================
   function tp(key) {
     const s = ships[key];
     const ac = geofs.aircraft.instance;
@@ -74,54 +73,56 @@
     console.log(TAG, "TP:", s.name, "ALT:", s.spawnAlt);
   }
 
-  // =========================
-  // HEIGHT CONTROL
-  // =========================
+  // =====================
+  // HEIGHT ADJUST
+  // =====================
   function adjust(dz) {
     if (!selected) return;
 
     ships[selected].spawnAlt += dz;
 
-    console.log(TAG, "NEW HEIGHT:", ships[selected].spawnAlt);
+    console.log(TAG, "HEIGHT:", ships[selected].spawnAlt);
   }
 
-  // =========================
-  // 🔥 COLLISION (THE FIX)
-  // =========================
+  // =====================
+  // 🔥 STRONG COLLISION
+  // =====================
   function collision() {
     const ac = geofs.aircraft.instance;
-    if (!ac || !selected) return;
+    if (!ac) return;
 
-    const s = ships[selected];
+    Object.values(ships).forEach(s => {
+      const latDiff = Math.abs(ac.llaLocation[0] - s.lat);
+      const lonDiff = Math.abs(ac.llaLocation[1] - s.lon);
 
-    const latDiff = Math.abs(ac.llaLocation[0] - s.lat);
-    const lonDiff = Math.abs(ac.llaLocation[1] - s.lon);
+      // BIGGER AREA (important)
+      if (latDiff < s.size && lonDiff < s.size) {
 
-    // only near ship
-    if (latDiff < 0.02 && lonDiff < 0.02) {
+        // If below deck → snap up HARD
+        if (ac.llaLocation[2] < s.deckAlt + 1) {
+          ac.llaLocation[2] = s.deckAlt + 1;
 
-      // lock to deck
-      if (ac.llaLocation[2] < s.deckAlt) {
-        ac.llaLocation[2] = s.deckAlt;
-        ac.velocity[2] = 0;
+          // kill downward movement COMPLETELY
+          if (ac.velocity) {
+            ac.velocity[2] = Math.max(0, ac.velocity[2]);
+          }
+        }
       }
-    }
+    });
   }
 
-  setInterval(collision, 50);
+  setInterval(collision, 20); // faster = stronger
 
-  // =========================
-  // KEYBINDS (SIMPLE + WORKING)
-  // =========================
+  // =====================
+  // KEYBINDS
+  // =====================
   window.addEventListener("keydown", e => {
     const k = e.key;
 
     console.log("KEY:", k);
 
-    // teleport
     if (ships[k]) tp(k);
 
-    // height
     if (k === "+" || k === "=") adjust(1);
     if (k === "-" || k === "_") adjust(-1);
   });
