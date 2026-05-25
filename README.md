@@ -1,5 +1,6 @@
-# GeoFS-Extra-Maritime-Structures_WORKING (* *INPROGRESS* *)
--THIS CODE IS IN PROGRESS AND LIKELY WILL NOT WORK TO ITS FULL POTENTIAL. THIS TAG WILL BE REMOVE ONCE THE FIRST 100% WORKING RELEASE IS COMPLETE*
+# GeoFS-Extra-Maritime-Structures_WORKING (**IN PROGRESS**)
+-
+# THIS CODE IS IN PROGRESS AND LIKELY WILL NOT WORK TO ITS FULL POTENTIAL. THIS TAG WILL BE REMOVE ONCE THE FIRST 100% WORKING RELEASE IS COMPLETE*
 -
 Since the good ol' Extra Maritime structures mod is outdated, this one is a great alternative for users who want to experience new carriers, oil rigs, and other maritime structures.
 # CHECK LICENSE BEFORE USE
@@ -16,4 +17,6 @@ At the moment, the beta release (you should not try to test this specific versio
 # Possible Updates
 -
 add over 100 new structures after the logic of spawning just 5 is figured out.
-add elevators, hooks, lauchers, moving parts, and possibly even a ATC system
+add elevators, hooks, lauchers, moving parts, and possibly even a ATC system.
+-IDKK
+-please give me ideas
