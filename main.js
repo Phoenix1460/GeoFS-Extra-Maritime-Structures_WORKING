@@ -11,11 +11,6 @@
         const viewer = geofs.api.viewer;
         const base = "https://cdn.jsdelivr.net/gh/Phoenix1460/GeoFS-Extra-Maritime-Structures_WORKING@main/modelfiles/";
 
-        // ── Ships ────────────────────────────────────────────────────────────
-        // deckAlt: metres above alt where the deck surface is.
-        //          Tune with +/- keys after teleporting — note the value that
-        //          feels right and hardcode it here for next time.
-        // ────────────────────────────────────────────────────────────────────
         const SHIPS = [
             {
                 name:    "USS Nimitz (CVN-68)",
@@ -78,7 +73,6 @@
         });
 
         // ── Footprint check ──────────────────────────────────────────────────
-        // Returns the ship if lat/lon is over its deck, otherwise null
         function getShipAt(lat, lon) {
             for (const ship of SHIPS) {
                 const mPerLat = 111320;
@@ -93,9 +87,7 @@
             return null;
         }
 
-        // ── Hook getFastTerrainElevation ─────────────────────────────────────
-        // This is what GeoFS physics calls every single frame.
-        // e = [lat, lon, alt]
+        // ── Hook GeoFS ground functions ──────────────────────────────────────
         const _origFast = geofs.api.getFastTerrainElevation.bind(geofs.api);
         geofs.api.getFastTerrainElevation = function (e) {
             const ship = getShipAt(e[0], e[1]);
@@ -103,34 +95,29 @@
             return _origFast(e);
         };
 
-        // ── Hook getGroundAltitude ───────────────────────────────────────────
-        // This is the slower call with smoothing/error correction.
-        // We also patch it so GeoFS doesn't fight our value with its error logic.
         const _origGround = geofs.api.getGroundAltitude.bind(geofs.api);
         geofs.api.getGroundAltitude = function (e, t) {
             const ship = getShipAt(e[0], e[1]);
             if (ship) {
                 const floor = ship.alt + ship.deckAlt;
                 if (t) {
-                    // Tell GeoFS this is a known-good value so error correction
-                    // doesn't try to override it
-                    t.lastGroundAltitude  = floor;
-                    t.wrongAltitudeTries  = 0;
-                    t.wrongValue          = undefined;
+                    t.lastGroundAltitude = floor;
+                    t.wrongAltitudeTries = 0;
+                    t.wrongValue         = undefined;
                 }
                 return floor;
             }
             return _origGround(e, t);
         };
 
-        console.log(TAG, "Ground hooks installed — GeoFS will treat ship decks as terrain");
+        console.log(TAG, "Ground hooks installed");
 
-        // ── Teleport keys ────────────────────────────────────────────────────
-        // +/- only moves the height you spawn at when pressing 1-4.
-        // Ships, collision, everything else is untouched.
+        // ── Keys ─────────────────────────────────────────────────────────────
         let teleportOffset = 0;
 
         window.addEventListener("keydown", e => {
+
+            // 1-4: teleport to ship
             if (["1","2","3","4"].includes(e.key)) {
                 const ship = SHIPS[Number(e.key) - 1];
                 if (!ship) return;
@@ -140,18 +127,30 @@
                 ac.llaLocation = [ship.lat, ship.lon, spawnAlt];
                 ac.htr         = [ship.heading, 0, 0];
                 ac.velocity    = [0, 0, 0];
-                console.log(TAG, `Teleported to ${ship.name} at ${spawnAlt}m (offset ${teleportOffset >= 0 ? "+" : ""}${teleportOffset}m)`);
+                console.log(TAG, `Teleported to ${ship.name} at ${spawnAlt}m`);
                 return;
             }
 
+            // [ / ]: raise or lower the GeoFS ground floor on all ships
+            if (e.key === "]" || e.key === "[") {
+                const delta = e.key === "]" ? 1 : -1;
+                SHIPS.forEach(s => s.deckAlt += delta);
+                console.log(TAG, `Deck ground floor: ${SHIPS[0].deckAlt}m above ship base`);
+                SHIPS.forEach((s, i) =>
+                    console.log(`  [${i+1}] ${s.name} — ground at ${s.alt + s.deckAlt}m`)
+                );
+                return;
+            }
+
+            // +/-: raise or lower teleport spawn height only
             const plus  = e.key === "+" || e.key === "=";
             const minus = e.key === "-" || e.key === "_";
             if (!plus && !minus) return;
-
             teleportOffset += plus ? 1 : -1;
             console.log(TAG, `Teleport offset: ${teleportOffset >= 0 ? "+" : ""}${teleportOffset}m`);
         });
 
-        console.log(TAG, "READY | 1-4: teleport | +/-: adjust teleport height");
+        console.log(TAG, "READY");
+        console.log(TAG, "1-4: teleport | [/]: deck ground floor | +/-: teleport height");
     }
 })();
