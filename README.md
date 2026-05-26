@@ -9,9 +9,15 @@ Use by pasting into devtools console or tampermonkey may work (i have not tested
 -
 # What is in progress with the code:
 -
-At the moment, the beta release (you should not try to test this specific version as it will not work without developer input as coded right now) has a bug causing all structures to not be solids, and aircraft will fall through the structures/runways. this is the main problem in progress of fixing and more updates will be released as progress happens.
+At the moment, the Alpha release is simply being converted out of developer access format.
+The only features needed to be added are
+- Approach and Takeoff teleport points.
 
 -
 # Possible Updates
-- Working Hooks/Cables System, as well as a working catapult.
-- Elevators that lead to a lower deck for aircraft storage and other purposes
+- Working Hooks/Cables System, as well as a working catapult on carriers.
+- Elevators that lead to a lower deck for aircraft storage and other purposes on carriers
+- Landing Lights and on deck signals on carriers.
+- MORE STRUCTURES
+- AI or Player-Operated ATC on carriers with Frequencies compatible with my upcoming (unreleased) ATC Mod.
+- AI/NPC Carrier Crewmembers on carriers (Refueling, Landing/Takeoff Guide, ETC..)
