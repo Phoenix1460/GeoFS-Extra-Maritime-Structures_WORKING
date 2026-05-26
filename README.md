@@ -13,7 +13,9 @@ At the moment, the Alpha release is simply being converted out of developer acce
 The only features needed to be added are
 - Approach and Takeoff teleport points.
 
--
+# Bugs
+-just so i can make sure this is released before GTA 6, I am going to release the first version with a deck that is not perfectly mapped- so even when you are visually off the side of the carrier, you may be still driving on the ground, as the decks are currently a single rectangle, rather then a complex shape to fit the deck.
+
 # Possible Updates
 - Working Hooks/Cables System, as well as a working catapult on carriers.
 - Elevators that lead to a lower deck for aircraft storage and other purposes on carriers
