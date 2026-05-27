@@ -16,7 +16,7 @@ Use by pasting into devtools console or tampermonkey may work (i have not tested
 # What is in progress with the code:
 -
 BETA 0.5 RELEASE!!!!!
-Bug fixes coming hopefully before GTA 6  *i know i use that horrible joke way to much*
+Bug fixes coming hopefully before GTA 6  (*i know i use that horrible joke way to much*)
 
 # Bugs
 the first version has a deck that is not perfectly mapped- so even when you are visually off the side of the carrier, you may be still driving on the ground, as the decks are currently a single rectangle, rather then a complex shape to fit the deck.
