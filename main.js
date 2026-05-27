@@ -1,5 +1,5 @@
 (async function () {
-    const TAG = "[MARITIME-MOD]";
+    const TAG = "[MARITIME]";
 
     const wait = setInterval(() => {
         if (!window.geofs || !window.Cesium) return;
