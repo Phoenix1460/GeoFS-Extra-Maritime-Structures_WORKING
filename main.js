@@ -62,7 +62,6 @@
             }
         ];
 
-        // Spawn all models
         SHIPS.forEach(ship => {
             const pos = Cesium.Cartesian3.fromDegrees(
                 ship.visualLon,
@@ -86,7 +85,6 @@
         });
         viewer.scene.requestRender();
 
-        // Hook GeoFS ground altitude — makes ship decks solid natively
         function getShipAt(lat, lon) {
             for (const ship of SHIPS) {
                 const mPerLat = 111320;
@@ -123,7 +121,6 @@
             return _origGround(e, t);
         };
 
-        // 1-4: teleport to ship
         window.addEventListener("keydown", e => {
             if (!["1","2","3","4"].includes(e.key)) return;
             const ship = SHIPS[Number(e.key) - 1];
